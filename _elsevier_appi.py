@@ -1,12 +1,15 @@
 from flask import Flask, jsonify
 import requests
 import json
+from dotenv import load_dotenv
+import os 
 
 app = Flask(__name__)
 
 @app.route('/search/<string:query>', methods=['GET'])
 def search(query):
-    api_key = ""
+    api_key =os.getenv('ELSEVIERAPI')
+
     
     # Define the URL and headers
     url = f'https://api.elsevier.com/content/search/sciencedirect?query={query}&count=10&sort=relevance'

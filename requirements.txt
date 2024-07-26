@@ -1,0 +1,7 @@
+Flask
+requests
+bs4
+htppx
+python-dotenv
+weasyprint
+jinja2

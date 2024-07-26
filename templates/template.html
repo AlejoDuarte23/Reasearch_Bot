@@ -1,0 +1,32 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ query }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 10pt;
+        }
+        .section {
+            page-break-after: always;
+        }
+    </style>
+</head>
+<body>
+    {% for record in records %}
+    <div class="section">
+        <h1><a href="{{ record.href }}">{{ record.title }}</a></h1>
+
+        {% if record.abstract != 'N/A' %}
+        <h2>Abstract</h2>
+        <p>{{ record.abstract }}</p>
+        {% endif %}
+
+        {% if record.conclusion != 'N/A' %}
+        <h2>Conclusion</h2>
+        <p>{{ record.conclusion }}</p>
+        {% endif %}
+    </div>
+    {% endfor %}
+</body>
+</html>

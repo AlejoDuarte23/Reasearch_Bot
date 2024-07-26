@@ -203,6 +203,7 @@ def scopus_paper_search(query, apikey):
     client = httpx.Client(timeout=timeout, headers=headers)
     url = f"https://api.elsevier.com/content/search/scopus?query={query}"
     r = client.get(url)
+    print(r)
     return r.json()
 # %% get abstract by doi 
 def get_abstract_by_doi(doi, apikey):
@@ -244,9 +245,11 @@ def get_abstract_by_scopus_id(scopus_id, apikey):
 # %% get content
 
 def fetch_elsevier_content(query):
-    api_key =''
-    records =[]
+    api_key =os.getenv('ELSEVIERAPI')
+
+    records =[] 
     search_results = scopus_paper_search(query, api_key)
+    print(search_results)
     entries = search_results['search-results']['entry']
     for entry in entries:
         try:
