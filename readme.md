@@ -2,15 +2,9 @@
 
 This project fetches academic content from various sources (Hindawi, MDPI, SpringerOpen, Arxiv, Elsevier) based on a query and generates an HTML report using Jinja2 templates.
 
-## Features
-
-- Fetch metadata, abstracts, and conclusions.
-- Sanitize query strings.
-- Generate HTML reports.
-
 ## Usage
 
-** Example **:
+
 ```python
 
 if __name__ == '__main__':
