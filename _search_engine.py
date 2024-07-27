@@ -58,12 +58,13 @@ def fetch_hindawi_content(query):
 
     return records
 
-
-        
+#https://www.mdpi.com/search?sort=pubdate&page_count=200&year_from=1996&year_to=2024&q=Frequency+Domain+Decomposition&view=default
+#https://www.mdpi.com/search?q=Frequency+Domain+Decomposition&journal=sensors
+#https://www.mdpi.com/search?q=Modal+analysis&journal=buildings
 # %% MDPI
 
-def fetch_mdpi_content(query):
-    search_url = f"https://www.mdpi.com/search?sort=pubdate&page_no=3&page_count=50&year_from=1996&year_to=2023&q={query}&view=default"
+def fetch_mdpi_content(query,journal):
+    search_url = f"https://www.mdpi.com/search?q={query}&journal={journal}"
     response = requests.get(search_url)
     
     if response.status_code != 200:
