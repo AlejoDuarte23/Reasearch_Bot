@@ -1,13 +1,30 @@
-import asyncio
-import aiohttp
 from typing import List, Callable
 from bs4 import BeautifulSoup
+from pydantic import BaseModel
+import asyncio
+import aiohttp
 
 import httpx
 import json
 import os
 import re
+from typing import Optional
+from pydantic import BaseModel, Field
+import uuid
 
+class Result(BaseModel):
+    id: Optional[str] = Field(default_factory=lambda: str(uuid.uuid4()))
+    href: str
+    title: str
+    abstract: str
+    conclusion: str
+    
+class Queryresults(BaseModel):
+    query: str
+    result: List[Result]
+    
+    def add_result(self, result: Result):
+        self.result.append(result)
 
 async def fetch_url(url: str) -> str:
     async with aiohttp.ClientSession() as session:
@@ -19,7 +36,7 @@ async def fetch_url(url: str) -> str:
 async def fetch_springeropen_content(query):
     search_url = f"https://www.springeropen.com/search?query={query}&searchType=publisherSearch"
     response = await fetch_url(search_url)
-        
+    springer_results = Queryresults(query=query, result=[])
     soup = BeautifulSoup(response, 'html.parser')
     
     records = []
@@ -45,18 +62,18 @@ async def fetch_springeropen_content(query):
                 else:
                     conclusion_text = 'N/A'
                 
-                records.append({
-                    'href': href,
-                    'title': title,
-                    'abstract': abstract_text,
-                    'conclusion': conclusion_text
-                })
+                result = Result(href=href,
+                                title=title,
+                                abstract=abstract_text,
+                                conclusion=conclusion_text)
+                springer_results.add_result(result)
+
         except Exception as e:
             print(e)
         
     print(f"finish with {len(records)} records")
 
-    return records
+    return springer_results
 
 
 async def fetch_mdpi_content(query,journal='buildings'):
@@ -101,14 +118,14 @@ async def fetch_mdpi_content(query,journal='buildings'):
                 'abstract': abstract_text,
                 'conclusion': conclusion_text
             })
-    print(f"finish with {len(records)} records")
 
     return records
 
 
-async def run_single_function(function:Callable ,query:str) -> List[dict]:
-    records = await function(query)
-    return records
+async def run_single_function(function:Callable ,query:str) -> Queryresults:
+    query_results = await function(query)
+    assert isinstance(query_results, Queryresults)
+    return query_results
 
 
 async def run_all_functions(functions:List[Callable], query:str) -> List[dict]:
@@ -126,3 +143,4 @@ if __name__ == '__main__':
 
     if test:
         asyncio.run(run_single_function(fetch_springeropen_content, "Model Updating"))
+
