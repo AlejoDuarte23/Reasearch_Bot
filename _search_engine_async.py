@@ -9,7 +9,7 @@ import httpx
 import json
 import os
 import re
-from typing import Optional
+from typing import List, Callable, AsyncGenerator, Optional
 from pydantic import BaseModel, Field
 import uuid
 
@@ -43,7 +43,7 @@ async def fetch_springeropen_content(query):
     response = await fetch_url(search_url)
     return response
 
-async def process_data_springeropen( query , response: str)->Queryresults:
+async def process_data_springeropen( query , response: str)->AsyncGenerator[dict, None]:
     springer_results = Queryresults(query=query, result=[])
     soup = BeautifulSoup(response, 'html.parser')
     records = []
@@ -69,26 +69,24 @@ async def process_data_springeropen( query , response: str)->Queryresults:
                 else:
                     conclusion_text = 'N/A'
                 
-                result = Result(href=href,
-                                title=title,
-                                abstract=abstract_text,
-                                conclusion=conclusion_text)
-                springer_results.add_result(result)
-
-        except Exception as e:
-            print(e)
+                record = {
+                    'href': href,
+                    'title': title,
+                    'abstract': abstract_text,
+                    'conclusion': conclusion_text
+                }
+                yield record
+        except:
+            print('Error')
         
-    print(f"finish with {len(records)} records")
 
-    return springer_results
 #%% mdpi
 async def fetch_mdpi_content(query,journal='buildings'):
     search_url = f"https://www.mdpi.com/search?q={query}&journal={journal}"
     response = await fetch_url(search_url)
     return response
 
-async def process_data_mdpi( query , response: str)->Queryresults:
-    mdpi_results = Queryresults(query=query, result=[])
+async def process_data_mdpi( query , response: str)->AsyncGenerator[dict, None]:
     soup = BeautifulSoup(response, 'html.parser')
     
     records = []
@@ -118,14 +116,15 @@ async def process_data_mdpi( query , response: str)->Queryresults:
             else:
                 conclusion_text = 'N/A'
             
-            records.append({
+            record = {
                 'href': href,
                 'title': title,
                 'abstract': abstract_text,
                 'conclusion': conclusion_text
-            })
+            }
 
-    return mdpi_results
+            yield record
+    
 
 #%% run functions
 
@@ -139,7 +138,9 @@ async def run_all_functions(functions:List[Callable], query:str) -> List[dict]:
     return await asyncio.gather(*tasks)
 
 
-async def main(query:str):
+async def main(query:str)->Queryresults:
+    results = Queryresults(query=query, result=[])
+
     functions = [fetch_mdpi_content, fetch_springeropen_content]
     response_list  = await run_all_functions(functions, query)
 
@@ -149,12 +150,11 @@ async def main(query:str):
         processing_function(query, response)
         for processing_function, response in zip(processing_functions, response_list)
     ]
-    results = await asyncio.gather(*tasks)
-    
-    for result in results:
-        print(result.query)
-        for record in result.result:
+
+    for task in tasks:
+        async for record in task:
             print(record)
+            results.add_result(Result(**record))
     
     return results
 
