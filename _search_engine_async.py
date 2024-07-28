@@ -1,4 +1,5 @@
 from typing import List, Callable
+import aiohttp.web_response
 from bs4 import BeautifulSoup
 from pydantic import BaseModel
 import asyncio
@@ -11,6 +12,9 @@ import re
 from typing import Optional
 from pydantic import BaseModel, Field
 import uuid
+
+from concurrent.futures import ProcessPoolExecutor
+
 
 class Result(BaseModel):
     id: Optional[str] = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -33,12 +37,15 @@ async def fetch_url(url: str) -> str:
 
 
 # %%  springeropen
+
 async def fetch_springeropen_content(query):
     search_url = f"https://www.springeropen.com/search?query={query}&searchType=publisherSearch"
     response = await fetch_url(search_url)
+    return response
+
+async def process_data_springeropen( query , response: str)->Queryresults:
     springer_results = Queryresults(query=query, result=[])
     soup = BeautifulSoup(response, 'html.parser')
-    
     records = []
     
     for element in soup.select('a[data-test="title-link"]'):
@@ -74,15 +81,14 @@ async def fetch_springeropen_content(query):
     print(f"finish with {len(records)} records")
 
     return springer_results
-
-
+#%% mdpi
 async def fetch_mdpi_content(query,journal='buildings'):
     search_url = f"https://www.mdpi.com/search?q={query}&journal={journal}"
     response = await fetch_url(search_url)
-    
-    if not response:
-        return "Failed to retrieve data"
-        
+    return response
+
+async def process_data_mdpi( query , response: str)->Queryresults:
+    mdpi_results = Queryresults(query=query, result=[])
     soup = BeautifulSoup(response, 'html.parser')
     
     records = []
@@ -107,7 +113,7 @@ async def fetch_mdpi_content(query,journal='buildings'):
             
             # Conclusion
             conclusion_elem = article_soup.find('h2', string=re.compile(r'.*conclusion.*', re.IGNORECASE))
-            if conclusion_elem:
+            if conclusion_elem: 
                 conclusion_text = ' '.join([p.text for p in conclusion_elem.find_all_next('div', class_='html-p', limit=5)])
             else:
                 conclusion_text = 'N/A'
@@ -119,21 +125,43 @@ async def fetch_mdpi_content(query,journal='buildings'):
                 'conclusion': conclusion_text
             })
 
-    return records
+    return mdpi_results
 
+#%% run functions
 
 async def run_single_function(function:Callable ,query:str) -> Queryresults:
     query_results = await function(query)
-    assert isinstance(query_results, Queryresults)
     return query_results
 
 
 async def run_all_functions(functions:List[Callable], query:str) -> List[dict]:
     tasks = [run_single_function(function, query) for function in functions]
-    await asyncio.gather(*tasks)
+    return await asyncio.gather(*tasks)
+
+
+async def main(query:str):
+    functions = [fetch_mdpi_content, fetch_springeropen_content]
+    response_list  = await run_all_functions(functions, query)
+
+    processing_functions = [process_data_mdpi, process_data_springeropen]
+
+    tasks = [
+        processing_function(query, response)
+        for processing_function, response in zip(processing_functions, response_list)
+    ]
+    results = await asyncio.gather(*tasks)
+    
+    for result in results:
+        print(result.query)
+        for record in result.result:
+            print(record)
+    
+    return results
+
 
 if __name__ == '__main__':
     concurrent = False
+    single = False
     test = True
 
     if concurrent:
@@ -141,6 +169,9 @@ if __name__ == '__main__':
         functions = [fetch_mdpi_content, fetch_springeropen_content]
         asyncio.run(run_all_functions(functions, query))
 
-    if test:
+    if single:
         asyncio.run(run_single_function(fetch_springeropen_content, "Model Updating"))
 
+    if test:
+        query = "Model Updating"
+        asyncio.run(main(query))
